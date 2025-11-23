@@ -73,6 +73,7 @@ st.markdown("""
 # API Key file path
 API_KEY_FILE = os.path.join(os.path.dirname(__file__), '.api_key.txt')
 HISTORY_FILE = os.path.join(os.path.dirname(__file__), '.analysis_history.json')
+KEYWORDS_FILE = os.path.join(os.path.dirname(__file__), '.keywords.json')
 
 # Function to load API key from file
 def load_api_key():
@@ -91,6 +92,37 @@ def save_api_key(api_key):
             f.write(api_key)
         return True
     except:
+        return False
+
+# Function to load keywords
+def load_keywords():
+    default_keywords = {
+        "group_a_construction": "건설 로봇\n건설 현장 자동화\n스마트 건설 R&D\n건설용 웨어러블 로봇",
+        "group_a_humanoid": "휴머노이드 로봇\n이족보행 로봇\n테슬라 옵티머스\n피규어 AI\n보스턴 다이내믹스",
+        "group_b_keywords": "협동로봇\n물류 로봇\nAMR\n주차 로봇\n제조업 로봇"
+    }
+    
+    if os.path.exists(KEYWORDS_FILE):
+        try:
+            with open(KEYWORDS_FILE, 'r', encoding='utf-8') as f:
+                saved_keywords = json.load(f)
+                # Merge with defaults to ensure all keys exist
+                for key, value in default_keywords.items():
+                    if key not in saved_keywords:
+                        saved_keywords[key] = value
+                return saved_keywords
+        except:
+            return default_keywords
+    return default_keywords
+
+# Function to save keywords
+def save_keywords(keywords_data):
+    try:
+        with open(KEYWORDS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(keywords_data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        st.warning(f"키워드 저장 실패: {str(e)}")
         return False
 
 # Function to load analysis history
@@ -299,25 +331,43 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### ⚙️ 검색 키워드 설정")
     
+    # Load keywords
+    current_keywords = load_keywords()
+    
     st.markdown("**그룹 A (핵심 - 70%)**")
     group_a_construction = st.text_area(
         "건설 로봇 키워드",
-        value="건설 로봇\n건설 현장 자동화\n스마트 건설 R&D\n건설용 웨어러블 로봇",
-        height=100
+        value=current_keywords["group_a_construction"],
+        height=100,
+        key="kw_construction"
     )
     
     group_a_humanoid = st.text_area(
         "휴머노이드 키워드",
-        value="휴머노이드 로봇\n이족보행 로봇\n테슬라 옵티머스\n피규어 AI\n보스턴 다이내믹스",
-        height=120
+        value=current_keywords["group_a_humanoid"],
+        height=120,
+        key="kw_humanoid"
     )
     
     st.markdown("**그룹 B (일반 - 30%)**")
     group_b_keywords = st.text_area(
         "기타 로봇 키워드",
-        value="협동로봇\n물류 로봇\nAMR\n주차 로봇\n제조업 로봇",
-        height=100
+        value=current_keywords["group_b_keywords"],
+        height=100,
+        key="kw_other"
     )
+    
+    # Save keywords button
+    if st.button("💾 설정 저장", key="save_keywords_btn"):
+        new_keywords = {
+            "group_a_construction": group_a_construction,
+            "group_a_humanoid": group_a_humanoid,
+            "group_b_keywords": group_b_keywords
+        }
+        if save_keywords(new_keywords):
+            st.success("키워드 설정이 저장되었습니다!")
+            time.sleep(1)
+            st.rerun()
     
     st.markdown("---")
     
