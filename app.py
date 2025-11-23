@@ -265,7 +265,7 @@ def save_to_pdf(content):
                     pass
             
         # Output to bytes
-        return pdf.output(dest='S').encode('latin-1')
+        return bytes(pdf.output(dest='S'))
     except Exception as e:
         st.error(f"PDF 생성 실패: {str(e)}")
         return None
