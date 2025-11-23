@@ -11,8 +11,6 @@ from docx import Document
 from docx.oxml.ns import qn
 from fpdf import FPDF
 import urllib.request
-import tkinter as tk
-from tkinter import filedialog
 
 # Page configuration
 st.set_page_config(
@@ -167,23 +165,8 @@ def get_history_summary(selected_indices=None):
     return summary
 
 # Function to save as Word
-def save_to_word(content, default_filename="report.docx"):
+def save_to_word(content):
     try:
-        # Open file dialog
-        root = tk.Tk()
-        root.withdraw()
-        root.wm_attributes('-topmost', 1)
-        file_path = filedialog.asksaveasfilename(
-            defaultextension=".docx",
-            filetypes=[("Word Document", "*.docx")],
-            initialfile=default_filename,
-            title="리포트 저장 (Word)"
-        )
-        root.destroy()
-        
-        if not file_path:
-            return None
-            
         doc = Document()
         
         # Set style for Korean font
@@ -207,30 +190,18 @@ def save_to_word(content, default_filename="report.docx"):
             p = doc.add_paragraph(line)
             p.style = doc.styles['Normal']
         
-        doc.save(file_path)
-        return file_path
+        # Save to BytesIO
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        return buffer
     except Exception as e:
-        st.error(f"Word 저장 실패: {str(e)}")
+        st.error(f"Word 생성 실패: {str(e)}")
         return None
 
 # Function to save as PDF
-def save_to_pdf(content, default_filename="report.pdf"):
+def save_to_pdf(content):
     try:
-        # Open file dialog
-        root = tk.Tk()
-        root.withdraw()
-        root.wm_attributes('-topmost', 1)
-        file_path = filedialog.asksaveasfilename(
-            defaultextension=".pdf",
-            filetypes=[("PDF Document", "*.pdf")],
-            initialfile=default_filename,
-            title="리포트 저장 (PDF)"
-        )
-        root.destroy()
-        
-        if not file_path:
-            return None
-            
         pdf = FPDF()
         pdf.add_page()
         
@@ -293,10 +264,10 @@ def save_to_pdf(content, default_filename="report.pdf"):
                 except:
                     pass
             
-        pdf.output(file_path)
-        return file_path
+        # Output to bytes
+        return pdf.output(dest='S').encode('latin-1')
     except Exception as e:
-        st.error(f"PDF 저장 실패: {str(e)}")
+        st.error(f"PDF 생성 실패: {str(e)}")
         return None
 
 # Initialize session state
@@ -767,15 +738,25 @@ with tab1:
             st.markdown("### 💾 리포트 저장")
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("📄 Word로 저장", key="save_news_word"):
-                    path = save_to_word(st.session_state.ai_report, "주간_로봇_산업_분석.docx")
-                    if path:
-                        st.success(f"저장 완료: {path}")
+                docx_data = save_to_word(st.session_state.ai_report)
+                if docx_data:
+                    st.download_button(
+                        label="📄 Word로 저장",
+                        data=docx_data,
+                        file_name="주간_로봇_산업_분석.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        key="save_news_word"
+                    )
             with col2:
-                if st.button("📑 PDF로 저장", key="save_news_pdf"):
-                    path = save_to_pdf(st.session_state.ai_report, "주간_로봇_산업_분석.pdf")
-                    if path:
-                        st.success(f"저장 완료: {path}")
+                pdf_data = save_to_pdf(st.session_state.ai_report)
+                if pdf_data:
+                    st.download_button(
+                        label="📑 PDF로 저장",
+                        data=pdf_data,
+                        file_name="주간_로봇_산업_분석.pdf",
+                        mime="application/pdf",
+                        key="save_news_pdf"
+                    )
         
         # Show source count at bottom
         if st.session_state.search_results:
@@ -826,15 +807,25 @@ with tab2:
             st.markdown("### 💾 리포트 저장")
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("📄 Word로 저장", key="save_file_word"):
-                    path = save_to_word(st.session_state.file_analysis_report, "파일_분석_리포트.docx")
-                    if path:
-                        st.success(f"저장 완료: {path}")
+                docx_data = save_to_word(st.session_state.file_analysis_report)
+                if docx_data:
+                    st.download_button(
+                        label="📄 Word로 저장",
+                        data=docx_data,
+                        file_name="파일_분석_리포트.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        key="save_file_word"
+                    )
             with col2:
-                if st.button("📑 PDF로 저장", key="save_file_pdf"):
-                    path = save_to_pdf(st.session_state.file_analysis_report, "파일_분석_리포트.pdf")
-                    if path:
-                        st.success(f"저장 완료: {path}")
+                pdf_data = save_to_pdf(st.session_state.file_analysis_report)
+                if pdf_data:
+                    st.download_button(
+                        label="📑 PDF로 저장",
+                        data=pdf_data,
+                        file_name="파일_분석_리포트.pdf",
+                        mime="application/pdf",
+                        key="save_file_pdf"
+                    )
         
         if uploaded_files:
             st.info(f"📁 분석된 파일: {', '.join([f.name for f in uploaded_files])}")
@@ -884,15 +875,25 @@ with tab3:
                 st.markdown("### 💾 리포트 저장")
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("📄 Word로 저장", key="save_integrated_word"):
-                        path = save_to_word(st.session_state.integrated_report, "통합_분석_리포트.docx")
-                        if path:
-                            st.success(f"저장 완료: {path}")
+                    docx_data = save_to_word(st.session_state.integrated_report)
+                    if docx_data:
+                        st.download_button(
+                            label="📄 Word로 저장",
+                            data=docx_data,
+                            file_name="통합_분석_리포트.docx",
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            key="save_integrated_word"
+                        )
                 with col2:
-                    if st.button("📑 PDF로 저장", key="save_integrated_pdf"):
-                        path = save_to_pdf(st.session_state.integrated_report, "통합_분석_리포트.pdf")
-                        if path:
-                            st.success(f"저장 완료: {path}")
+                    pdf_data = save_to_pdf(st.session_state.integrated_report)
+                    if pdf_data:
+                        st.download_button(
+                            label="📑 PDF로 저장",
+                            data=pdf_data,
+                            file_name="통합_분석_리포트.pdf",
+                            mime="application/pdf",
+                            key="save_integrated_pdf"
+                        )
             
             # Show summary
             st.info("💡 이 리포트는 주간 뉴스 트렌드와 업로드된 문서를 종합적으로 분석한 결과입니다.")
