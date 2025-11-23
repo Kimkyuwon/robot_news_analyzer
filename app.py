@@ -371,67 +371,71 @@ with st.sidebar:
 
 # Function to search news using DuckDuckGo
 def search_news(keywords_list, max_results=5):
-    """Search news using DuckDuckGo"""
+    """Search news using DuckDuckGo with robust retry logic"""
     all_results = []
     seen_urls = set()
     
     ddgs = DDGS()
     
     for keyword in keywords_list:
-        try:
-            # Search with time filter (past week)
-            results = ddgs.text(
-                keyword,
-                region='kr-kr',
-                safesearch='off',
-                timelimit='w',  # Past week
-                max_results=max_results
-            )
-            
-            # If no results, try without time limit
-            if not results:
-                results = ddgs.text(
-                    keyword,
-                    region='kr-kr',
-                    safesearch='off',
-                    max_results=max_results
-                )
-            
-            for result in results:
-                url = result.get('href', '')
-                if url and url not in seen_urls:
-                    seen_urls.add(url)
-                    all_results.append({
-                        'title': result.get('title', ''),
-                        'snippet': result.get('body', ''),
-                        'url': url,
-                        'keyword': keyword
-                    })
-            
-            # Small delay to avoid rate limiting
-            time.sleep(0.5)
-            
-        except Exception as e:
-            # Try one more time without time limit if error occurred
+        success = False
+        # Retry strategies: (region, timelimit)
+        strategies = [
+            ('kr-kr', 'w'),    # 1. Korean region, past week
+            ('kr-kr', None),   # 2. Korean region, any time
+            ('wt-wt', 'w'),    # 3. World region, past week
+            ('wt-wt', None)    # 4. World region, any time
+        ]
+        
+        for region, timelimit in strategies:
+            if success:
+                break
+                
             try:
                 results = ddgs.text(
                     keyword,
-                    region='kr-kr',
+                    region=region,
                     safesearch='off',
+                    timelimit=timelimit,
                     max_results=max_results
                 )
-                for result in results:
-                    url = result.get('href', '')
-                    if url and url not in seen_urls:
-                        seen_urls.add(url)
-                        all_results.append({
-                            'title': result.get('title', ''),
-                            'snippet': result.get('body', ''),
-                            'url': url,
-                            'keyword': keyword
-                        })
+                
+                if results:
+                    for result in results:
+                        url = result.get('href', '')
+                        if url and url not in seen_urls:
+                            seen_urls.add(url)
+                            all_results.append({
+                                'title': result.get('title', ''),
+                                'snippet': result.get('body', ''),
+                                'url': url,
+                                'keyword': keyword
+                            })
+                    success = True
+                    # Small delay to avoid rate limiting
+                    time.sleep(0.5)
+            except Exception:
+                time.sleep(1) # Wait a bit before retry
+                continue
+                
+        if not success:
+            # Final fallback: try without any constraints and catch-all
+            try:
+                results = ddgs.text(keyword, max_results=max_results)
+                if results:
+                    for result in results:
+                        url = result.get('href', '')
+                        if url and url not in seen_urls:
+                            seen_urls.add(url)
+                            all_results.append({
+                                'title': result.get('title', ''),
+                                'snippet': result.get('body', ''),
+                                'url': url,
+                                'keyword': keyword
+                            })
             except:
-                st.warning(f"검색 실패 (키워드: {keyword}): {str(e)}")
+                st.warning(f"검색 실패 (키워드: {keyword}) - 모든 검색 시도 실패")
+                
     return all_results
 
 # Function to generate AI report using Gemini
